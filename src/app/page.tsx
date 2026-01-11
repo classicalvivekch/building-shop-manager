@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BuildingIcon, UserIcon, LockIcon, EyeIcon, EyeOffIcon, FingerprintIcon } from '@/components/Icons'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -56,9 +57,9 @@ export default function LoginPage() {
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 20px',
-          fontSize: '36px'
+          boxShadow: '0 10px 40px rgba(37, 99, 235, 0.3)'
         }}>
-          🏗️
+          <BuildingIcon size={44} />
         </div>
         <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
           Construction Materials Manager
@@ -94,14 +95,15 @@ export default function LoginPage() {
               left: '16px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              display: 'flex'
             }}>
-              👤
+              <UserIcon size={18} />
             </span>
             <input
               type="email"
               className="input-field"
-              placeholder="e.g. john.doe"
+              placeholder="e.g. john.doe@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ paddingLeft: '44px' }}
@@ -118,9 +120,10 @@ export default function LoginPage() {
               left: '16px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              display: 'flex'
             }}>
-              🔒
+              <LockIcon size={18} />
             </span>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -142,10 +145,12 @@ export default function LoginPage() {
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--text-secondary)'
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                padding: '4px'
               }}
             >
-              {showPassword ? '👁️' : '🙈'}
+              {showPassword ? <EyeIcon size={18} /> : <EyeOffIcon size={18} />}
             </button>
           </div>
           <div style={{ textAlign: 'right', marginTop: '8px' }}>
@@ -197,8 +202,8 @@ export default function LoginPage() {
       </div>
 
       {/* Face ID Button */}
-      <button className="btn btn-outline" style={{ marginBottom: '40px' }}>
-        🤖 Face ID
+      <button className="btn btn-outline" style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <FingerprintIcon size={20} /> Biometric Login
       </button>
 
       {/* Footer */}
@@ -207,22 +212,7 @@ export default function LoginPage() {
           Having trouble? <a href="#" style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }}>Contact Support</a>
         </p>
       </div>
-
-      {/* Demo credentials hint */}
-      <div style={{
-        marginTop: '20px',
-        padding: '16px',
-        background: '#eff6ff',
-        borderRadius: '12px',
-        fontSize: '13px',
-        textAlign: 'center'
-      }}>
-        <p style={{ marginBottom: '8px', fontWeight: '600', color: 'var(--primary)' }}>Demo Credentials</p>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Admin: admin@shop.com / admin123<br />
-          Employee: employee@shop.com / employee123
-        </p>
-      </div>
     </div>
   )
 }
+
