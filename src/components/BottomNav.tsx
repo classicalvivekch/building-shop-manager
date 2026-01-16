@@ -18,23 +18,23 @@ export default function BottomNav({ isAdmin = false }: BottomNavProps) {
                 href={baseHref}
                 className={`bottom-nav-item ${pathname === baseHref ? 'active' : ''}`}
             >
-                <span style={{ fontSize: '20px' }}>🏠</span>
-                <span style={{ fontSize: '12px', marginTop: '4px' }}>Home</span>
+                <img src="/icons/3d/home.png" alt="Home" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                <span style={{ fontSize: '11px', marginTop: '2px' }}>Home</span>
             </Link>
 
             <Link
                 href={`${baseHref}/sales/new`}
                 className="bottom-nav-center"
             >
-                <span style={{ fontSize: '24px' }}>🛒</span>
+                <img src="/icons/3d/add_sale.png" alt="New Sale" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
             </Link>
 
             <Link
                 href={`${baseHref}/settings`}
                 className={`bottom-nav-item ${pathname.includes('/settings') ? 'active' : ''}`}
             >
-                <span style={{ fontSize: '20px' }}>⚙️</span>
-                <span style={{ fontSize: '12px', marginTop: '4px' }}>Settings</span>
+                <img src="/icons/3d/settings.png" alt="Settings" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                <span style={{ fontSize: '11px', marginTop: '2px' }}>Settings</span>
             </Link>
         </nav>
     )

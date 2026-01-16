@@ -84,10 +84,13 @@ export default function AdminSettingsPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px',
                     transition: 'background 0.15s ease-out'
                 }}>
-                    {icon}
+                    {typeof icon === 'string' && icon.startsWith('/') ? (
+                        <img src={icon} alt="" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                    ) : (
+                        <span style={{ fontSize: '20px' }}>{icon}</span>
+                    )}
                 </div>
                 <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{title}</p>
@@ -196,13 +199,13 @@ export default function AdminSettingsPage() {
                 {/* Settings List */}
                 <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '24px' }}>
                     <SettingsItem
-                        icon="👤"
+                        icon="/icons/3d/profile.png"
                         title="Edit Profile"
                         subtitle="Update your personal information"
                         onClick={() => router.push('/dashboard/settings/profile')}
                     />
                     <SettingsItem
-                        icon="🔒"
+                        icon="/icons/3d/security.png"
                         title="Privacy & Security"
                         subtitle="Password and security settings"
                         onClick={() => router.push('/dashboard/settings/security')}
@@ -227,19 +230,19 @@ export default function AdminSettingsPage() {
                     )}
 
                     <SettingsItem
-                        icon="👥"
+                        icon="/icons/3d/users.png"
                         title="User Management"
                         subtitle="Manage employees and permissions"
                         onClick={() => router.push('/dashboard/settings/users')}
                     />
                     <SettingsItem
-                        icon="📊"
+                        icon="/icons/3d/reports.png"
                         title="Business Settings"
                         subtitle="Shop name, address, and preferences"
                         onClick={() => alert('Business Settings coming soon!')}
                     />
                     <SettingsItem
-                        icon="🔔"
+                        icon="/icons/3d/notification.png"
                         title="Notifications"
                         subtitle="Alert preferences and reminders"
                         onClick={() => alert('Notifications coming soon!')}
