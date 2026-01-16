@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
+interface User {
+    id: number
+    name: string
+    role: string
+}
 
 export default function NewExpensePage() {
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [user, setUser] = useState<User | null>(null)
     const [amount, setAmount] = useState('')
     const [description, setDescription] = useState('')
     const [category, setCategory] = useState('INVENTORY')
@@ -18,6 +25,22 @@ export default function NewExpensePage() {
     const [uploading, setUploading] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+
+    // Fetch user on mount to check role
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me')
+                if (res.ok) {
+                    const data = await res.json()
+                    setUser(data.user)
+                }
+            } catch (err) {
+                console.error('Failed to fetch user')
+            }
+        }
+        fetchUser()
+    }, [])
 
     const categories = [
         { id: 'INVENTORY', label: 'Inventory', icon: '📦' },
@@ -80,7 +103,8 @@ export default function NewExpensePage() {
             })
 
             if (!res.ok) {
-                throw new Error('Failed to save expense')
+                const data = await res.json()
+                throw new Error(data.error || 'Failed to save expense')
             }
 
             router.push('/dashboard')
@@ -162,13 +186,30 @@ export default function NewExpensePage() {
 
                     {/* Date */}
                     <div className="input-group">
-                        <label className="input-label">Date</label>
+                        <label className="input-label">
+                            Date
+                            {user && user.role !== 'ADMIN' && (
+                                <span style={{ fontSize: '11px', color: 'var(--warning)', marginLeft: '8px' }}>
+                                    (Today only)
+                                </span>
+                            )}
+                        </label>
                         <input
                             type="date"
                             className="input-field"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
+                            disabled={user !== null && user.role !== 'ADMIN'}
+                            style={{
+                                opacity: (user && user.role !== 'ADMIN') ? 0.7 : 1,
+                                cursor: (user && user.role !== 'ADMIN') ? 'not-allowed' : 'pointer'
+                            }}
                         />
+                        {user && user.role !== 'ADMIN' && (
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                Contact admin to add expenses for other dates
+                            </p>
+                        )}
                     </div>
 
                     {/* Receipt Photo */}

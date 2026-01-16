@@ -64,12 +64,43 @@ export async function POST(request: Request) {
             )
         }
 
+        // Parse the expense date - handle timezone correctly
+        let parsedDate: Date
+        if (expenseDate) {
+            // If date string provided (YYYY-MM-DD format), parse it as local date at noon
+            // This prevents timezone offset issues
+            const [year, month, day] = expenseDate.split('-').map(Number)
+            parsedDate = new Date(year, month - 1, day, 12, 0, 0) // Noon to avoid timezone shifts
+        } else {
+            parsedDate = new Date()
+        }
+
+        // For non-admin employees, restrict to today's date only
+        if (user.role !== 'ADMIN') {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+
+            const expenseDateStart = new Date(parsedDate)
+            expenseDateStart.setHours(0, 0, 0, 0)
+
+            const tomorrow = new Date(today)
+            tomorrow.setDate(tomorrow.getDate() + 1)
+
+            // Check if expense date is not today
+            if (expenseDateStart.getTime() !== today.getTime()) {
+                return NextResponse.json(
+                    { error: 'You can only add expenses for today. Contact admin for other dates.' },
+                    { status: 403 }
+                )
+            }
+        }
+
         const expense = await prisma.expense.create({
             data: {
                 description,
                 amount: parseFloat(amount),
                 category: category || 'OTHER',
-                expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
+                expenseDate: parsedDate,
                 receiptPhoto: receiptPhoto || null,
                 createdBy: user.id
             }
