@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { uploadToSupabase } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
     try {
@@ -30,24 +28,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File too large. Max 5MB' }, { status: 400 })
         }
 
-        // Create uploads directory if it doesn't exist
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'avatars')
-        if (!existsSync(uploadsDir)) {
-            await mkdir(uploadsDir, { recursive: true })
-        }
-
         // Generate unique filename
         const extension = file.name.split('.').pop() || 'jpg'
-        const filename = `avatar_${user.id}_${Date.now()}.${extension}`
-        const filePath = path.join(uploadsDir, filename)
+        const filename = `avatars/avatar_${user.id}_${Date.now()}.${extension}`
 
-        // Convert file to buffer and save
+        // Convert file to buffer
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
-        await writeFile(filePath, buffer)
 
-        // Generate URL
-        const avatarUrl = `/uploads/avatars/${filename}`
+        // Upload to Supabase Storage
+        const avatarUrl = await uploadToSupabase(buffer, 'uploads', filename, file.type)
 
         // Update user avatar in database
         await prisma.user.update({

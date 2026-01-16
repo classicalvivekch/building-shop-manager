@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
 import { getSession } from '@/lib/auth'
+import { uploadToSupabase } from '@/lib/supabase'
 
-// For now, use local filesystem storage
-// In production with Supabase Storage properly configured, switch to supabase upload
 export async function POST(request: NextRequest) {
     try {
         const user = await getSession()
@@ -35,24 +31,16 @@ export async function POST(request: NextRequest) {
         // Determine folder based on type
         const folder = type === 'expense' ? 'receipts' : type === 'sale' ? 'sales' : type === 'client' ? 'clients' : 'general'
 
-        // Create uploads directory if it doesn't exist
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads', folder)
-        if (!existsSync(uploadsDir)) {
-            await mkdir(uploadsDir, { recursive: true })
-        }
-
         // Generate unique filename
         const extension = file.name.split('.').pop() || 'jpg'
-        const filename = `${type}_${Date.now()}.${extension}`
-        const filePath = path.join(uploadsDir, filename)
+        const filename = `${folder}/${type}_${Date.now()}.${extension}`
 
-        // Convert file to buffer and save
+        // Convert file to buffer
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
-        await writeFile(filePath, buffer)
 
-        // Generate URL
-        const imageUrl = `/uploads/${folder}/${filename}`
+        // Upload to Supabase Storage
+        const imageUrl = await uploadToSupabase(buffer, 'uploads', filename, file.type)
 
         return NextResponse.json({
             message: 'Photo uploaded successfully',
