@@ -16,64 +16,62 @@ export async function GET(
         const { id } = await params
         const userId = parseInt(id)
 
-        // Get employee details using raw SQL
-        const employees = await prisma.$queryRaw`
-            SELECT id, name, email, phone, avatar, address, salary, role, createdAt 
-            FROM users 
-            WHERE id = ${userId}
-        ` as any[]
+        // Get employee details using Prisma
+        const employee = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                avatar: true,
+                address: true,
+                salary: true,
+                role: true,
+                createdAt: true
+            }
+        })
 
-        if (!employees || employees.length === 0) {
+        if (!employee) {
             return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
         }
 
-        const employee = employees[0]
-
         // Get total sales made by this employee
-        const salesStats = await prisma.$queryRaw`
-            SELECT 
-                COUNT(*) as totalSales,
-                COALESCE(SUM(totalAmount), 0) as totalSalesAmount
-            FROM sales 
-            WHERE createdBy = ${userId}
-        ` as any[]
+        const salesStats = await prisma.sale.aggregate({
+            where: { createdBy: userId },
+            _count: { id: true },
+            _sum: { totalAmount: true }
+        })
 
         // Get salary payments history
-        const salaryPayments = await prisma.$queryRaw`
-            SELECT id, amount, month, year, status, notes, paidAt, createdAt
-            FROM salary_payments
-            WHERE userId = ${userId}
-            ORDER BY year DESC, 
-                CASE month 
-                    WHEN 'January' THEN 1 WHEN 'February' THEN 2 WHEN 'March' THEN 3
-                    WHEN 'April' THEN 4 WHEN 'May' THEN 5 WHEN 'June' THEN 6
-                    WHEN 'July' THEN 7 WHEN 'August' THEN 8 WHEN 'September' THEN 9
-                    WHEN 'October' THEN 10 WHEN 'November' THEN 11 WHEN 'December' THEN 12
-                END DESC
-            LIMIT 10
-        ` as any[]
+        const salaryPayments = await prisma.salaryPayment.findMany({
+            where: { userId: userId },
+            orderBy: [
+                { year: 'desc' },
+                { createdAt: 'desc' }
+            ],
+            take: 10
+        })
 
         // Get pending salary amount
-        const pendingSalary = await prisma.$queryRaw`
-            SELECT COALESCE(SUM(amount), 0) as pendingAmount
-            FROM salary_payments
-            WHERE userId = ${userId} AND status = 'PENDING'
-        ` as any[]
+        const pendingSalary = await prisma.salaryPayment.aggregate({
+            where: { userId: userId, status: 'PENDING' },
+            _sum: { amount: true }
+        })
 
         // Get total paid salary
-        const paidSalary = await prisma.$queryRaw`
-            SELECT COALESCE(SUM(amount), 0) as paidAmount
-            FROM salary_payments
-            WHERE userId = ${userId} AND status = 'PAID'
-        ` as any[]
+        const paidSalary = await prisma.salaryPayment.aggregate({
+            where: { userId: userId, status: 'PAID' },
+            _sum: { amount: true }
+        })
 
         return NextResponse.json({
             employee: {
                 ...employee,
-                totalSales: Number(salesStats[0]?.totalSales || 0),
-                totalSalesAmount: Number(salesStats[0]?.totalSalesAmount || 0),
-                pendingSalary: Number(pendingSalary[0]?.pendingAmount || 0),
-                totalPaidSalary: Number(paidSalary[0]?.paidAmount || 0)
+                totalSales: salesStats._count.id || 0,
+                totalSalesAmount: Number(salesStats._sum.totalAmount || 0),
+                pendingSalary: Number(pendingSalary._sum.amount || 0),
+                totalPaidSalary: Number(paidSalary._sum.amount || 0)
             },
             salaryHistory: salaryPayments
         })
@@ -102,15 +100,16 @@ export async function PUT(
         const body = await request.json()
         const { name, email, phone, address, salary } = body
 
-        await prisma.$executeRaw`
-            UPDATE users 
-            SET name = ${name}, 
-                email = ${email}, 
-                phone = ${phone || null},
-                address = ${address || null},
-                salary = ${salary || null}
-            WHERE id = ${userId}
-        `
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                name,
+                email,
+                phone: phone || null,
+                address: address || null,
+                salary: salary || null
+            }
+        })
 
         return NextResponse.json({ message: 'Employee updated successfully' })
     } catch (error: any) {
@@ -137,23 +136,28 @@ export async function DELETE(
         const userId = parseInt(id)
 
         // Check if user exists and is not an admin
-        const users = await prisma.$queryRaw`
-            SELECT id, role FROM users WHERE id = ${userId}
-        ` as any[]
+        const targetUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true }
+        })
 
-        if (!users || users.length === 0) {
+        if (!targetUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 })
         }
 
-        if (users[0].role === 'ADMIN') {
+        if (targetUser.role === 'ADMIN') {
             return NextResponse.json({ error: 'Cannot delete admin users' }, { status: 403 })
         }
 
         // Delete salary payments first (foreign key constraint)
-        await prisma.$executeRaw`DELETE FROM salary_payments WHERE userId = ${userId}`
+        await prisma.salaryPayment.deleteMany({
+            where: { userId: userId }
+        })
 
         // Delete the user
-        await prisma.$executeRaw`DELETE FROM users WHERE id = ${userId}`
+        await prisma.user.delete({
+            where: { id: userId }
+        })
 
         return NextResponse.json({ message: 'Employee deleted successfully' })
     } catch (error: any) {

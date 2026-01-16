@@ -4,6 +4,8 @@ import { existsSync } from 'fs'
 import path from 'path'
 import { getSession } from '@/lib/auth'
 
+// For now, use local filesystem storage
+// In production with Supabase Storage properly configured, switch to supabase upload
 export async function POST(request: NextRequest) {
     try {
         const user = await getSession()

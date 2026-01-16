@@ -61,10 +61,7 @@ export default function NewExpensePage() {
             setError('Amount and description are required')
             return
         }
-        if (!receiptPhoto) {
-            setError('Receipt photo is required. Please take a photo of the receipt.')
-            return
-        }
+        // Receipt photo is optional
 
         setLoading(true)
         setError('')
@@ -176,7 +173,7 @@ export default function NewExpensePage() {
 
                     {/* Receipt Photo */}
                     <div className="input-group">
-                        <label className="input-label">Receipt Photo <span className="required">*</span></label>
+                        <label className="input-label">Receipt Photo (Optional)</label>
                         <input
                             ref={fileInputRef}
                             type="file"

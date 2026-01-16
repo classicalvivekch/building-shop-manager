@@ -4,27 +4,20 @@ import { getSession } from '@/lib/auth'
 
 export async function GET() {
     try {
-        // Use raw SQL to include receiptPhoto field
-        const expenses = await prisma.$queryRaw`
-            SELECT 
-                e.id, e.description, e.amount, e.category, e.expenseDate, 
-                e.receiptPhoto, e.createdBy, e.createdAt,
-                u.name as creatorName, u.email as creatorEmail
-            FROM expenses e
-            LEFT JOIN users u ON e.createdBy = u.id
-            ORDER BY e.expenseDate DESC
-        ` as Array<{
-            id: number
-            description: string
-            amount: number
-            category: string
-            expenseDate: Date
-            receiptPhoto: string | null
-            createdBy: number
-            createdAt: Date
-            creatorName: string
-            creatorEmail: string
-        }>
+        // Use Prisma ORM instead of raw SQL
+        const expenses = await prisma.expense.findMany({
+            include: {
+                creator: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            },
+            orderBy: {
+                expenseDate: 'desc'
+            }
+        })
 
         // Transform to expected format
         const formattedExpenses = expenses.map(exp => ({
@@ -36,8 +29,8 @@ export async function GET() {
             receiptPhoto: exp.receiptPhoto,
             createdAt: exp.createdAt,
             creator: {
-                name: exp.creatorName,
-                email: exp.creatorEmail
+                name: exp.creator.name,
+                email: exp.creator.email
             }
         }))
 
@@ -71,16 +64,18 @@ export async function POST(request: Request) {
             )
         }
 
-        const expDate = expenseDate ? new Date(expenseDate) : new Date()
-        const cat = category || 'OTHER'
+        const expense = await prisma.expense.create({
+            data: {
+                description,
+                amount: parseFloat(amount),
+                category: category || 'OTHER',
+                expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
+                receiptPhoto: receiptPhoto || null,
+                createdBy: user.id
+            }
+        })
 
-        // Use raw SQL to avoid Prisma client sync issues
-        await prisma.$executeRaw`
-            INSERT INTO expenses (description, amount, category, expenseDate, receiptPhoto, createdBy, createdAt)
-            VALUES (${description}, ${amount}, ${cat}, ${expDate}, ${receiptPhoto || null}, ${user.id}, NOW())
-        `
-
-        return NextResponse.json({ message: 'Expense created successfully' }, { status: 201 })
+        return NextResponse.json({ message: 'Expense created successfully', expense }, { status: 201 })
     } catch (error) {
         console.error('Create expense error:', error)
         return NextResponse.json(

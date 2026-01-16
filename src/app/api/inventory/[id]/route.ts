@@ -96,12 +96,11 @@ export async function DELETE(
             )
         }
 
-        // Save item name in sale_items before deleting (so we have a record of what was sold)
-        await prisma.$executeRaw`
-            UPDATE sale_items 
-            SET itemName = ${item.name}
-            WHERE itemId = ${itemId}
-        `
+        // Save item name in sale_items before deleting using Prisma updateMany
+        await prisma.saleItem.updateMany({
+            where: { itemId: itemId },
+            data: { itemName: item.name }
+        })
 
         // Delete related purchases first (if any)
         await prisma.purchase.deleteMany({

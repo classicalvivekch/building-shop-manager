@@ -17,34 +17,39 @@ export async function PUT(request: NextRequest) {
         }
 
         // Check if email is already taken by another user
-        const existingUsers = await prisma.$queryRaw`
-            SELECT id FROM users WHERE email = ${email} AND id != ${user.id}
-        ` as any[]
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                email: email,
+                NOT: { id: user.id }
+            }
+        })
 
-        if (existingUsers && existingUsers.length > 0) {
+        if (existingUser) {
             return NextResponse.json({ error: 'Email is already in use' }, { status: 400 })
         }
 
-        // Update user profile using raw SQL to handle new fields
-        await prisma.$executeRaw`
-            UPDATE users 
-            SET name = ${name}, 
-                email = ${email}, 
-                phone = ${phone || null},
-                avatar = ${avatar || null}
-            WHERE id = ${user.id}
-        `
-
-        // Fetch updated user
-        const updatedUsers = await prisma.$queryRaw`
-            SELECT id, name, email, phone, avatar, role 
-            FROM users 
-            WHERE id = ${user.id}
-        ` as any[]
+        // Update user profile
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                name,
+                email,
+                phone: phone || null,
+                avatar: avatar || undefined
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                avatar: true,
+                role: true
+            }
+        })
 
         return NextResponse.json({
             message: 'Profile updated successfully',
-            user: updatedUsers[0]
+            user: updatedUser
         })
     } catch (error: any) {
         console.error('Error updating profile:', error)
@@ -54,4 +59,3 @@ export async function PUT(request: NextRequest) {
         }, { status: 500 })
     }
 }
-

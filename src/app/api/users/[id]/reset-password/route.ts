@@ -23,21 +23,22 @@ export async function PUT(
             return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
         }
 
-        // Check if user exists using raw SQL
-        const targetUsers = await prisma.$queryRaw`
-            SELECT id FROM users WHERE id = ${userId}
-        ` as any[]
+        // Check if user exists
+        const targetUser = await prisma.user.findUnique({
+            where: { id: userId }
+        })
 
-        if (!targetUsers || targetUsers.length === 0) {
+        if (!targetUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 })
         }
 
-        // Hash and update password using raw SQL
+        // Hash and update password
         const hashedPassword = hashPassword(password)
 
-        await prisma.$executeRaw`
-            UPDATE users SET password = ${hashedPassword} WHERE id = ${userId}
-        `
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        })
 
         return NextResponse.json({ message: 'Password reset successfully' })
     } catch (error) {
@@ -45,4 +46,3 @@ export async function PUT(
         return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 })
     }
 }
-

@@ -4,79 +4,53 @@ import { getSession } from '@/lib/auth'
 
 export async function GET() {
     try {
-        // Use raw SQL to include clientPhoto and creator info
-        const sales = await prisma.$queryRaw`
-            SELECT 
-                s.id, s.orderNumber, s.customerId, s.totalAmount, s.isBorrow, 
-                s.paymentStatus, s.notes, s.clientPhoto, s.createdBy, s.createdAt,
-                c.name as customerName, c.mobile as customerMobile,
-                u.name as creatorName
-            FROM sales s
-            LEFT JOIN customers c ON s.customerId = c.id
-            LEFT JOIN users u ON s.createdBy = u.id
-            ORDER BY s.createdAt DESC
-        ` as Array<{
-            id: number
-            orderNumber: string
-            customerId: number | null
-            totalAmount: number
-            isBorrow: boolean
-            paymentStatus: string
-            notes: string | null
-            clientPhoto: string | null
-            createdBy: number
-            createdAt: Date
-            customerName: string | null
-            customerMobile: string | null
-            creatorName: string
-        }>
-
-        // Get items for each sale
-        const salesWithItems = await Promise.all(
-            sales.map(async (sale) => {
-                const items = await prisma.$queryRaw`
-                    SELECT si.id, si.quantity, si.rate, si.subtotal, 
-                           i.name as itemName, i.unit as itemUnit
-                    FROM sale_items si
-                    LEFT JOIN inventory_items i ON si.itemId = i.id
-                    WHERE si.saleId = ${sale.id}
-                ` as Array<{
-                    id: number
-                    quantity: number
-                    rate: number
-                    subtotal: number
-                    itemName: string
-                    itemUnit: string
-                }>
-
-                return {
-                    id: sale.id,
-                    orderNumber: sale.orderNumber,
-                    totalAmount: sale.totalAmount,
-                    isBorrow: sale.isBorrow ? true : false,
-                    paymentStatus: sale.paymentStatus,
-                    notes: sale.notes,
-                    clientPhoto: sale.clientPhoto,
-                    createdAt: sale.createdAt,
-                    customer: sale.customerName ? {
-                        name: sale.customerName,
-                        mobile: sale.customerMobile
-                    } : null,
-                    creator: {
-                        name: sale.creatorName
-                    },
-                    items: items.map(item => ({
-                        quantity: item.quantity,
-                        rate: item.rate,
-                        subtotal: item.subtotal,
-                        item: {
-                            name: item.itemName,
-                            unit: item.itemUnit
-                        }
-                    }))
+        // Use Prisma ORM instead of raw SQL
+        const sales = await prisma.sale.findMany({
+            include: {
+                customer: true,
+                creator: {
+                    select: {
+                        name: true
+                    }
+                },
+                items: {
+                    include: {
+                        item: true
+                    }
                 }
-            })
-        )
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        })
+
+        // Transform to expected format
+        const salesWithItems = sales.map(sale => ({
+            id: sale.id,
+            orderNumber: sale.orderNumber,
+            totalAmount: sale.totalAmount,
+            isBorrow: sale.isBorrow,
+            paymentStatus: sale.paymentStatus,
+            notes: sale.notes,
+            clientPhoto: sale.clientPhoto,
+            createdAt: sale.createdAt,
+            customer: sale.customer ? {
+                name: sale.customer.name,
+                mobile: sale.customer.mobile
+            } : null,
+            creator: {
+                name: sale.creator.name
+            },
+            items: sale.items.map(saleItem => ({
+                quantity: saleItem.quantity,
+                rate: saleItem.rate,
+                subtotal: saleItem.subtotal,
+                item: {
+                    name: saleItem.item?.name || saleItem.itemName || 'Unknown Item',
+                    unit: saleItem.item?.unit || 'unit'
+                }
+            }))
+        }))
 
         return NextResponse.json({ sales: salesWithItems })
     } catch (error) {
@@ -184,9 +158,12 @@ export async function POST(request: Request) {
             return newSale
         })
 
-        // Update clientPhoto after transaction using raw SQL (to avoid Prisma sync issues)
+        // Update clientPhoto after transaction using Prisma
         if (clientPhoto) {
-            await prisma.$executeRaw`UPDATE sales SET clientPhoto = ${clientPhoto} WHERE id = ${sale.id}`
+            await prisma.sale.update({
+                where: { id: sale.id },
+                data: { clientPhoto }
+            })
         }
 
         return NextResponse.json({ sale }, { status: 201 })

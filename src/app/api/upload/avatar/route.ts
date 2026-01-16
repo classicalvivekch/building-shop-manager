@@ -49,10 +49,11 @@ export async function POST(request: NextRequest) {
         // Generate URL
         const avatarUrl = `/uploads/avatars/${filename}`
 
-        // Update user avatar in database using raw SQL
-        await prisma.$executeRaw`
-            UPDATE users SET avatar = ${avatarUrl} WHERE id = ${user.id}
-        `
+        // Update user avatar in database
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { avatar: avatarUrl }
+        })
 
         return NextResponse.json({
             message: 'Avatar uploaded successfully',

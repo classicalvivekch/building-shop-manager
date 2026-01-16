@@ -16,18 +16,13 @@ export async function GET(
         const { id } = await params
         const userId = parseInt(id)
 
-        const salaryPayments = await prisma.$queryRaw`
-            SELECT id, amount, month, year, status, notes, paidAt, createdAt
-            FROM salary_payments
-            WHERE userId = ${userId}
-            ORDER BY year DESC, 
-                CASE month 
-                    WHEN 'January' THEN 1 WHEN 'February' THEN 2 WHEN 'March' THEN 3
-                    WHEN 'April' THEN 4 WHEN 'May' THEN 5 WHEN 'June' THEN 6
-                    WHEN 'July' THEN 7 WHEN 'August' THEN 8 WHEN 'September' THEN 9
-                    WHEN 'October' THEN 10 WHEN 'November' THEN 11 WHEN 'December' THEN 12
-                END DESC
-        ` as any[]
+        const salaryPayments = await prisma.salaryPayment.findMany({
+            where: { userId: userId },
+            orderBy: [
+                { year: 'desc' },
+                { createdAt: 'desc' }
+            ]
+        })
 
         return NextResponse.json({ salaryPayments })
     } catch (error: any) {
@@ -56,19 +51,34 @@ export async function POST(
             return NextResponse.json({ error: 'Amount, month, and year are required' }, { status: 400 })
         }
 
-        const paidAt = status === 'PAID' ? new Date() : null
         const paymentStatus = status || 'PENDING'
+        const paidAt = paymentStatus === 'PAID' ? new Date() : null
 
-        await prisma.$executeRaw`
-            INSERT INTO salary_payments (userId, amount, month, year, status, notes, paidAt, createdAt, updatedAt)
-            VALUES (${userId}, ${amount}, ${month}, ${year}, ${paymentStatus}, ${notes || null}, ${paidAt}, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE 
-                amount = ${amount},
-                status = ${paymentStatus},
-                notes = ${notes || null},
-                paidAt = ${paidAt},
-                updatedAt = NOW()
-        `
+        // Use upsert for PostgreSQL (instead of ON DUPLICATE KEY UPDATE which is MySQL syntax)
+        await prisma.salaryPayment.upsert({
+            where: {
+                userId_month_year: {
+                    userId: userId,
+                    month: month,
+                    year: parseInt(year)
+                }
+            },
+            update: {
+                amount: parseFloat(amount),
+                status: paymentStatus,
+                notes: notes || null,
+                paidAt: paidAt
+            },
+            create: {
+                userId: userId,
+                amount: parseFloat(amount),
+                month: month,
+                year: parseInt(year),
+                status: paymentStatus,
+                notes: notes || null,
+                paidAt: paidAt
+            }
+        })
 
         return NextResponse.json({ message: 'Salary payment recorded successfully' }, { status: 201 })
     } catch (error: any) {
@@ -98,11 +108,13 @@ export async function PUT(
 
         const paidAt = status === 'PAID' ? new Date() : null
 
-        await prisma.$executeRaw`
-            UPDATE salary_payments 
-            SET status = ${status}, paidAt = ${paidAt}
-            WHERE id = ${paymentId}
-        `
+        await prisma.salaryPayment.update({
+            where: { id: paymentId },
+            data: {
+                status: status,
+                paidAt: paidAt
+            }
+        })
 
         return NextResponse.json({ message: 'Salary payment updated successfully' })
     } catch (error: any) {

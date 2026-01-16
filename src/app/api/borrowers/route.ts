@@ -20,67 +20,53 @@ export async function GET() {
         const twoWeeksAgo = new Date()
         twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
-        // Get all active borrows
-        const activeBorrowsRaw = await prisma.$queryRaw`
-            SELECT 
-                br.id, br.borrowDate, br.dueDate, br.outstandingAmount, br.isReturned,
-                br.reminderDismissed, br.saleId,
-                s.orderNumber, s.totalAmount,
-                c.id as customerId, c.name as customerName, c.mobile as customerMobile,
-                DATEDIFF(NOW(), br.borrowDate) as daysSinceBorrow
-            FROM borrow_records br
-            JOIN sales s ON br.saleId = s.id
-            LEFT JOIN customers c ON s.customerId = c.id
-            WHERE br.isReturned = false
-            ORDER BY br.borrowDate ASC
-        ` as Array<{
-            id: number
-            borrowDate: Date
-            dueDate: Date
-            outstandingAmount: number
-            isReturned: boolean
-            reminderDismissed: boolean
-            saleId: number
-            orderNumber: string
-            totalAmount: number
-            customerId: number | null
-            customerName: string | null
-            customerMobile: string | null
-            daysSinceBorrow: number
-        }>
-
-        // Get items for each borrow
-        const activeBorrows = await Promise.all(
-            activeBorrowsRaw.map(async (borrow) => {
-                const items = await prisma.$queryRaw`
-                    SELECT i.name, si.quantity
-                    FROM sale_items si
-                    JOIN inventory_items i ON si.itemId = i.id
-                    WHERE si.saleId = ${borrow.saleId}
-                ` as Array<{ name: string, quantity: number }>
-
-                return {
-                    id: borrow.id,
-                    borrowDate: borrow.borrowDate,
-                    dueDate: borrow.dueDate,
-                    outstandingAmount: Number(borrow.outstandingAmount),
-                    isOverdue: Number(borrow.daysSinceBorrow) > 7,
-                    daysSinceBorrow: Number(borrow.daysSinceBorrow),
-                    daysOverdue: Math.max(0, Number(borrow.daysSinceBorrow) - 7),
-                    reminderDismissed: borrow.reminderDismissed ? true : false,
-                    orderNumber: borrow.orderNumber,
-                    customer: borrow.customerName ? {
-                        id: borrow.customerId,
-                        name: borrow.customerName,
-                        mobile: borrow.customerMobile
-                    } : null,
-                    items: items.map(item => ({
-                        name: item.name,
-                        quantity: Number(item.quantity)
-                    }))
+        // Get all active borrows using Prisma ORM
+        const activeBorrowsRaw = await prisma.borrowRecord.findMany({
+            where: {
+                isReturned: false
+            },
+            include: {
+                sale: {
+                    include: {
+                        customer: true,
+                        items: {
+                            include: {
+                                item: true
+                            }
+                        }
+                    }
                 }
-            })
-        )
+            },
+            orderBy: {
+                borrowDate: 'asc'
+            }
+        })
+
+        // Transform data
+        const activeBorrows = activeBorrowsRaw.map((borrow) => {
+            const daysSinceBorrow = Math.floor((now.getTime() - new Date(borrow.borrowDate).getTime()) / (1000 * 60 * 60 * 24))
+
+            return {
+                id: borrow.id,
+                borrowDate: borrow.borrowDate,
+                dueDate: borrow.dueDate,
+                outstandingAmount: Number(borrow.outstandingAmount),
+                isOverdue: daysSinceBorrow > 7,
+                daysSinceBorrow: daysSinceBorrow,
+                daysOverdue: Math.max(0, daysSinceBorrow - 7),
+                reminderDismissed: borrow.reminderDismissed,
+                orderNumber: borrow.sale.orderNumber,
+                customer: borrow.sale.customer ? {
+                    id: borrow.sale.customer.id,
+                    name: borrow.sale.customer.name,
+                    mobile: borrow.sale.customer.mobile
+                } : null,
+                items: borrow.sale.items.map(saleItem => ({
+                    name: saleItem.item?.name || saleItem.itemName || 'Unknown Item',
+                    quantity: saleItem.quantity
+                }))
+            }
+        })
 
         // Calculate stats
         const totalActiveBorrows = activeBorrows.length
@@ -89,12 +75,16 @@ export async function GET() {
         const overdueRate = totalActiveBorrows > 0 ? Math.round((overdueCount / totalActiveBorrows) * 100) : 0
 
         // Get last week's stats for comparison
-        const lastWeekBorrowsResult = await prisma.$queryRaw`
-            SELECT COUNT(*) as count FROM borrow_records
-            WHERE isReturned = false
-            AND borrowDate < ${oneWeekAgo} AND borrowDate >= ${twoWeeksAgo}
-        ` as Array<{ count: bigint }>
-        const lastWeekBorrows = Number(lastWeekBorrowsResult[0]?.count || 0)
+        const lastWeekBorrows = await prisma.borrowRecord.count({
+            where: {
+                isReturned: false,
+                borrowDate: {
+                    lt: oneWeekAgo,
+                    gte: twoWeeksAgo
+                }
+            }
+        })
+
         const borrowsChange = lastWeekBorrows > 0
             ? Math.round(((totalActiveBorrows - lastWeekBorrows) / lastWeekBorrows) * 100)
             : (totalActiveBorrows > 0 ? 100 : 0)
@@ -143,29 +133,44 @@ export async function POST(request: Request) {
         }
 
         if (action === 'returned') {
+            // Get borrow record to find associated sale
+            const borrowRecord = await prisma.borrowRecord.findUnique({
+                where: { id: borrowId }
+            })
+
+            if (!borrowRecord) {
+                return NextResponse.json(
+                    { error: 'Borrow record not found' },
+                    { status: 404 }
+                )
+            }
+
             // Mark as returned
-            await prisma.$executeRaw`
-                UPDATE borrow_records 
-                SET isReturned = true, returnedAt = NOW()
-                WHERE id = ${borrowId}
-            `
+            await prisma.borrowRecord.update({
+                where: { id: borrowId },
+                data: {
+                    isReturned: true,
+                    returnedAt: new Date()
+                }
+            })
 
             // Update sale payment status
-            await prisma.$executeRaw`
-                UPDATE sales s
-                JOIN borrow_records br ON s.id = br.saleId
-                SET s.paymentStatus = 'PAID'
-                WHERE br.id = ${borrowId}
-            `
+            await prisma.sale.update({
+                where: { id: borrowRecord.saleId },
+                data: { paymentStatus: 'PAID' }
+            })
 
             return NextResponse.json({ message: 'Marked as returned' })
         } else if (action === 'remind_later') {
             // Dismiss reminder for now
-            await prisma.$executeRaw`
-                UPDATE borrow_records 
-                SET reminderDismissed = true
-                WHERE id = ${borrowId}
-            `
+            await prisma.borrowRecord.update({
+                where: { id: borrowId },
+                data: {
+                    reminderDismissed: true,
+                    dismissedAt: new Date(),
+                    dismissedBy: user.id
+                }
+            })
             return NextResponse.json({ message: 'Reminder dismissed' })
         } else {
             return NextResponse.json(

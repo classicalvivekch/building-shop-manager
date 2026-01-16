@@ -10,12 +10,18 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Use raw SQL to avoid Prisma client type issues
-        const users = await prisma.$queryRaw`
-            SELECT id, name, email, phone, avatar, role, createdAt 
-            FROM users 
-            ORDER BY createdAt DESC
-        ` as any[]
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                avatar: true,
+                role: true,
+                createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        })
 
         return NextResponse.json({ users })
     } catch (error) {
@@ -39,36 +45,39 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 })
         }
 
-        // Check if email already exists using raw SQL
-        const existingUsers = await prisma.$queryRaw`
-            SELECT id FROM users WHERE email = ${email}
-        ` as any[]
+        // Check if email already exists
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
+        })
 
-        if (existingUsers && existingUsers.length > 0) {
+        if (existingUser) {
             return NextResponse.json({ error: 'Email already exists' }, { status: 400 })
         }
 
-        // Hash password
+        // Hash password and create user
         const hashedPassword = hashPassword(password)
-        const userRole = role || 'EMPLOYEE'
-        const userPhone = phone || null
 
-        // Create user using raw SQL
-        await prisma.$executeRaw`
-            INSERT INTO users (name, email, phone, password, role, createdAt, updatedAt)
-            VALUES (${name}, ${email}, ${userPhone}, ${hashedPassword}, ${userRole}, NOW(), NOW())
-        `
-
-        // Get the newly created user
-        const newUsers = await prisma.$queryRaw`
-            SELECT id, name, email, phone, role, createdAt 
-            FROM users 
-            WHERE email = ${email}
-        ` as any[]
+        const newUser = await prisma.user.create({
+            data: {
+                name,
+                email,
+                phone: phone || null,
+                password: hashedPassword,
+                role: role || 'EMPLOYEE'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+                createdAt: true
+            }
+        })
 
         return NextResponse.json({
             message: 'User created successfully',
-            user: newUsers[0]
+            user: newUser
         }, { status: 201 })
     } catch (error: any) {
         console.error('Error creating user:', error)
@@ -78,4 +87,3 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
     }
 }
-
