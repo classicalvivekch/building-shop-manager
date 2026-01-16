@@ -332,7 +332,7 @@ export default function AdminDashboard() {
                                     <div className="transaction-details">
                                         <p className="transaction-title">{expense.description}</p>
                                         <p className="transaction-subtitle">
-                                            {new Date(expense.expenseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {expense.category}
+                                            {new Date(expense.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {expense.description.split(' ')[0]}
                                         </p>
                                     </div>
                                     <p className="transaction-amount negative">
