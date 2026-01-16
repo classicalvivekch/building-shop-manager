@@ -243,33 +243,29 @@ export default function AdminDashboard() {
                 {/* Quick Actions */}
                 <h3 style={{ fontWeight: '600', marginBottom: '16px' }}>Quick Actions</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
-                    <Link href="/dashboard/inventory" className="quick-action">
-                        <div className="quick-action-icon blue"><PackageIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Inventory</span>
+                    <Link href="/dashboard/inventory" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/inventory.png" alt="Inventory" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Inventory</span>
                     </Link>
-                    <Link href="/dashboard/sales" className="quick-action">
-                        <div className="quick-action-icon green"><ReceiptIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Sales</span>
+                    <Link href="/dashboard/sales" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/sales.png" alt="Sales" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Sales</span>
                     </Link>
-                    <Link href="/dashboard/expenses" className="quick-action">
-                        <div className="quick-action-icon red"><WalletIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Expenses</span>
+                    <Link href="/dashboard/expenses" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/expenses.png" alt="Expenses" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Expenses</span>
                     </Link>
-                    <Link href="/dashboard/reports" className="quick-action">
-                        <div className="quick-action-icon blue"><TrendingUpIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Reports</span>
+                    <Link href="/dashboard/reports" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/reports.png" alt="Reports" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Reports</span>
                     </Link>
-                    <Link href="/dashboard/borrowers" className="quick-action">
-                        <div className="quick-action-icon orange"><HandshakeIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Borrowers</span>
+                    <Link href="/dashboard/borrowers" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/borrowers.png" alt="Borrowers" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Borrowers</span>
                     </Link>
-                    <Link href="/dashboard/calendar" className="quick-action">
-                        <div className="quick-action-icon green"><CalendarIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Calendar</span>
-                    </Link>
-                    <Link href="/dashboard/employees" className="quick-action">
-                        <div className="quick-action-icon red"><UsersIcon size={22} color="#ffffff" /></div>
-                        <span style={{ fontSize: '13px', fontWeight: '500' }}>Employees</span>
+                    <Link href="/dashboard/calendar" className="quick-action" style={{ background: 'white', borderRadius: '16px', padding: '16px 12px', textAlign: 'center', textDecoration: 'none', color: 'inherit', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                        <img src="/icons/3d/calendar.png" alt="Calendar" style={{ width: '48px', height: '48px', marginBottom: '8px', objectFit: 'contain' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '500', display: 'block' }}>Calendar</span>
                     </Link>
                 </div>
 
@@ -322,7 +318,7 @@ export default function AdminDashboard() {
                                     <div className="transaction-details">
                                         <p className="transaction-title">Sale #{sale.orderNumber}</p>
                                         <p className="transaction-subtitle">
-                                            {sale.items?.map(i => i.item.name).join(', ').slice(0, 30)}...
+                                            {new Date(sale.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {sale.customer?.name || 'Walk-in'}
                                         </p>
                                     </div>
                                     <p className="transaction-amount positive">
@@ -336,7 +332,7 @@ export default function AdminDashboard() {
                                     <div className="transaction-details">
                                         <p className="transaction-title">{expense.description}</p>
                                         <p className="transaction-subtitle">
-                                            {new Date(expense.createdAt).toLocaleDateString()}
+                                            {new Date(expense.expenseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {expense.category}
                                         </p>
                                     </div>
                                     <p className="transaction-amount negative">

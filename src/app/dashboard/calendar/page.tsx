@@ -211,10 +211,10 @@ export default function CalendarPage() {
                                         </div>
                                         <div className="transaction-details">
                                             <p className="transaction-title">
-                                                {sale.items?.map(i => i.item.name).join(', ').slice(0, 25)}...
+                                                {sale.items?.map(i => i.item?.name).filter(Boolean).join(', ').slice(0, 25) || 'Sale'}{sale.items?.length ? '...' : ''}
                                             </p>
                                             <p className="transaction-subtitle">
-                                                {new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {sale.isBorrow ? 'Borrow' : 'Cash'}
+                                                {sale.createdAt ? new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} • {sale.customer?.name || (sale.isBorrow ? 'Borrow' : 'Cash')}
                                             </p>
                                         </div>
                                         <p className={`transaction-amount ${sale.isBorrow ? '' : 'positive'}`}>
