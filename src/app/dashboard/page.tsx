@@ -61,6 +61,8 @@ interface DashboardStats {
             description: string
             amount: number | string
             createdAt: string
+            expenseDate: string
+            category: string
         }>
     }
 }
